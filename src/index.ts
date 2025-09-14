@@ -210,6 +210,17 @@ class ExampleMentraOSApp extends AppServer {
       const html = await ejs.renderFile(templatePath, {});
       res.send(html);
     });
+
+    // Health check endpoint for Railway
+    app.get('/', (req: any, res: any) => {
+      res.json({
+        message: 'MentraOS Photo Taker App',
+        status: 'running',
+        version: '1.0.0',
+        backend_url: BACKEND_URL,
+        port: PORT
+      });
+    });
   }
 }
 

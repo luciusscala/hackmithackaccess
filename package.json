@@ -5,6 +5,7 @@
   "scripts": {
     "start": "bun src/index.ts",
     "dev": "bun --hot src/index.ts",
+    "build": "echo 'No build step required for TypeScript'",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
