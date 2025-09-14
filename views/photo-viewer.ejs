@@ -3,93 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Photo Viewer</title>
+  <title>Photo Processor</title>
   <style>
     body {
       margin: 0;
-      padding: 0;
+      padding: 20px;
       background-color: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      color: white;
       font-family: Arial, sans-serif;
+      text-align: center;
     }
 
-    .photo-container {
-      max-width: 100vw;
-      max-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
     }
 
     .photo {
       max-width: 100%;
-      max-height: 100%;
+      max-height: 60vh;
       object-fit: contain;
       border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .status {
+      font-size: 18px;
+      margin: 20px 0;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .processing {
+      background-color: #333;
+      color: #ffa500;
+    }
+
+    .completed {
+      background-color: #2d5a2d;
+      color: #90ee90;
+    }
+
+    .error {
+      background-color: #5a2d2d;
+      color: #ff6b6b;
     }
 
     .no-photo {
-      color: white;
-      text-align: center;
-      font-size: 18px;
-    }
-
-    .loading {
-      color: white;
-      text-align: center;
+      color: #888;
       font-size: 16px;
     }
   </style>
 </head>
 <body>
-  <div class="photo-container">
-    <div id="content" class="loading">Loading latest photo...</div>
+  <div class="container">
+    <h1>Photo Processor</h1>
+    <div id="content" class="status processing">Loading...</div>
   </div>
 
   <script>
     let currentRequestId = null;
 
-    /**
-     * Check for new photos and update display
-     */
-    async function checkForNewPhoto() {
+    async function checkStatus() {
       try {
-        const response = await fetch('/api/latest-photo');
+        const response = await fetch('/api/processing-status');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch status');
+        }
 
-        if (response.status === 404) {
-          // No photo available
-          document.getElementById('content').innerHTML =
-            '<div class="no-photo">No photos taken yet. Take a photo using your Mentra Live by pressing the right button!</div>';
+        const status = await response.json();
+
+        if (!status.hasPhoto) {
+          document.getElementById('content').innerHTML = 
+            '<div class="no-photo">No photos taken yet. Take a photo using your Mentra Live by pressing the button!</div>';
           return;
         }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch photo info');
+        // Show photo if available
+        if (status.photoTimestamp !== currentRequestId) {
+          currentRequestId = status.photoTimestamp;
+          
+          // Get the photo
+          const photoResponse = await fetch(`/api/photo/${status.photoTimestamp}`);
+          if (photoResponse.ok) {
+            const photoBlob = await photoResponse.blob();
+            const photoUrl = URL.createObjectURL(photoBlob);
+            
+            document.getElementById('content').innerHTML = 
+              `<img class="photo" src="${photoUrl}" alt="Latest Photo" />
+               <div class="status processing">Processing photo into video...</div>`;
+          }
         }
 
-        const photoInfo = await response.json();
-
-        // Check if this is a new photo
-        if (photoInfo.requestId !== currentRequestId) {
-          currentRequestId = photoInfo.requestId;
-
-          // Update the display with new photo
-          document.getElementById('content').innerHTML =
-            '<img class="photo" src="/api/photo/' + photoInfo.requestId + '" alt="Latest Photo" />';
+        // Show processing status
+        if (status.taskId) {
+          document.getElementById('content').innerHTML = 
+            `<img class="photo" src="/api/photo/${status.photoTimestamp}" alt="Latest Photo" />
+             <div class="status processing">Processing photo into video... (Task: ${status.taskId})</div>`;
         }
+
       } catch (error) {
-        console.error('Error checking for new photo:', error);
-        document.getElementById('content').innerHTML =
-          '<div class="no-photo">Error loading photo. Please refresh the page.</div>';
+        console.error('Error checking status:', error);
+        document.getElementById('content').innerHTML = 
+          '<div class="status error">Error loading status. Please refresh the page.</div>';
       }
     }
 
-    // Check for new photos every 500ms (twice per second)
-    checkForNewPhoto(); // Initial check
-    setInterval(checkForNewPhoto, 500);
+    // Check status every 2 seconds
+    checkStatus();
+    setInterval(checkStatus, 2000);
   </script>
 </body>
 </html>
