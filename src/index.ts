@@ -2,6 +2,8 @@ import { AppServer, AppSession, ViewType, AuthenticatedRequest, PhotoData } from
 import { Request, Response } from 'express';
 import * as ejs from 'ejs';
 import * as path from 'path';
+import fs from 'fs';
+import { spawn } from "child_process";
 
 /**
  * Interface representing a stored photo with metadata
@@ -59,6 +61,16 @@ class ExampleMentraOSApp extends AppServer {
         // the user held the button, so we toggle the streaming mode
         this.isStreamingPhotos.set(userId, !this.isStreamingPhotos.get(userId));
         this.logger.info(`Streaming photos for user ${userId} is now ${this.isStreamingPhotos.get(userId)}`);
+        
+        if (this.isStreamingPhotos) {
+          session.camera.stopStream();
+          return;
+        }
+
+        const stream = await session.camera.startStream({
+          rtmpUrl: 'rtmp://162.120.186.78:1935/live/mentra'
+        });
+
         return;
       } else {
         session.layouts.showTextWall("Button pressed, about to take photo", {durationMs: 4000});
@@ -68,6 +80,13 @@ class ExampleMentraOSApp extends AppServer {
           const photo = await session.camera.requestPhoto();
           // if there was an error, log it
           this.logger.info(`Photo taken for user ${userId}, timestamp: ${photo.timestamp}`);
+          
+          // Save to file (Node.js) MARKER
+          const filename = `photo_${Date.now()}.jpg`;
+          const filepath = path.join('photos',filename)
+          fs.writeFileSync(filepath, photo.buffer);
+          session.logger.info(`Photo saved to file: ${filepath}`);
+
           this.cachePhoto(photo, userId);
         } catch (error) {
           this.logger.error(`Error taking photo: ${error}`);
@@ -119,6 +138,7 @@ class ExampleMentraOSApp extends AppServer {
       size: photo.size
     };
 
+    
     // this example app simply stores the photo in memory for display in the webview, but you could also send the photo to an AI api,
     // or store it in a database or cloud storage, send it to roboflow, or do other processing here
 
