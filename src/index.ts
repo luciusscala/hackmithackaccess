@@ -121,7 +121,7 @@ class ExampleMentraOSApp extends AppServer {
       formData.append('file', blob, `photo_${Date.now()}.jpg`);
 
       // Send to backend
-      const response = await axios.post(`${BACKEND_URL}/upload-photo`, formData, {
+      const response = await axios.post(`${BACKEND_URL}/photos/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
